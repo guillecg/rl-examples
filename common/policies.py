@@ -1,57 +1,60 @@
-from abc import abstractmethod
+# Reproducibility
+SEED = 42
 
+import torch
+torch.manual_seed(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+
+# TODO: add arquitecture from ONNX, JSON or similar format files
 import numpy as np
 
 import torch.nn as nn
 
-
-# TODO: add arquitecture from ONNX, JSON or similar format files
-
-
-class BaseDeepPolicy(nn.Module):
-
-    def __init__(self, input_shape):
-        super(BaseDeepPolicy, self).__init__()
-
-        self.input_shape = input_shape
-
-    @abstractmethod
-    def build_network(self):
-        ''' Abstract method to be replaced by the desired network architecture
-        '''
-        pass
-
-    @abstractmethod
-    def forward(self, x):
-        ''' Abstract method to be replaced by the desired forward function
-        '''
-        pass
-
-    @staticmethod
-    def get_network_output_size(network, input_shape):
-        network_output = network(torch.zeros(1, *input_shape))
-        return network_output.flatten().shape[0]
-
-    @property
-    def network(self):
-        return self.build_network()
-
-    @property
-    def network_output_size(self):
-        return self.get_network_output_size(self.network, self.input_shape)
+from common.utils import get_network_output_shape
 
 
-class CNNPolicy(BaseDeepPolicy):
+class CnnPolicy(nn.Module):
 
-    def build_network(self):
-        return nn.Sequential(
-            nn.Conv2d(self.input_shape[0], 64, kernel_size=8, stride=4),
+    def __init__(self, input_shape, n_actions):
+        super(CnnPolicy, self).__init__()
+
+        self.cnn = nn.Sequential(
+            nn.Conv2d(input_shape[0], 8, kernel_size=5, stride=2),
+            nn.BatchNorm2d(8),
             nn.ReLU(),
-            nn.Conv2d(64, 32, kernel_size=4, stride=2),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+
+            nn.Conv2d(8, 16, kernel_size=5, stride=2, padding=5),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1),
-            nn.ReLU()
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+
+            nn.Conv2d(16, 32, kernel_size=5, stride=2, padding=5),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+        )
+
+        cnn_output_shape = get_network_output_shape(
+            network=self.cnn,
+            input_shape=input_shape
+        )
+
+        self.dnn = nn.Sequential(
+            nn.Linear(np.prod(cnn_output_shape), 128),
+            nn.ReLU(),
+            nn.Linear(128, n_actions),
+            nn.Softmax()
         )
 
     def forward(self, x):
-        return self.network(x)
+        hidden = self.cnn(x)
+
+        # Flattens CNN output, see: https://stackoverflow.com/a/49607525
+        hidden = hidden.view(hidden.shape[0], -1)
+
+        output = self.dnn(hidden)
+
+        return output
