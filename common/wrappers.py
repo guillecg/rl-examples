@@ -1,7 +1,5 @@
 import gym
 
-import torch
-
 from common.utils import image_to_pytorch
 
 

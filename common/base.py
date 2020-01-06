@@ -11,6 +11,12 @@ class BaseAgent(ABC):
         return self._env
 
     @abstractmethod
+    def choose_action(self):
+        ''' Abstact method to be replaced by the policy prediction
+        '''
+        pass
+
+    @abstractmethod
     def perform_train(self):
         ''' Abstact method to be replaced by the training loop
         '''
@@ -19,11 +25,5 @@ class BaseAgent(ABC):
     @abstractmethod
     def perform_test(self):
         ''' Abstact method to be replaced by the test loop
-        '''
-        pass
-
-    @abstractmethod
-    def choose_action(self):
-        ''' Abstact method to be replaced by the policy prediction
         '''
         pass

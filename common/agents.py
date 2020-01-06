@@ -1,5 +1,3 @@
-import torch
-
 from tqdm import tqdm
 
 from collections import deque
@@ -63,20 +61,8 @@ class DQN(BaseAgent):
 
     def perform_train(self, n_timesteps=100, n_episodes=100):
         for episode in tqdm(range(1, n_episodes + 1)):
-            # Reset at the beginning of each episode
-            self.env.reset()
-            reward = 0
-
             for timestep in range(1, n_timesteps + 1):
-                # Choose action for the current state
-                state  = self.env.render()
-                action = self.choose_action(state)
-
-                # Take the chosen action
-                next_state, reward, terminated, info = self.env.step(action)
-
-                # Store in the experience replay memory/buffer
-                self.store(state, action, reward, next_state, terminated)
+                pass
 
     def perform_test(self, n_timesteps=20, n_episodes=20):
         for episode in tqdm(range(1, n_episodes + 1)):

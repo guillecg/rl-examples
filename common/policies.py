@@ -8,6 +8,7 @@ torch.backends.cudnn.benchmark = False
 
 
 # TODO: add arquitecture from ONNX, JSON or similar format files
+
 import numpy as np
 
 import torch.nn as nn
