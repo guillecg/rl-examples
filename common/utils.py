@@ -1,6 +1,9 @@
 # Reproducibility
 SEED = 42
 
+import random
+random.seed(SEED)
+
 import torch
 torch.manual_seed(SEED)
 
@@ -19,7 +22,8 @@ def epsilon_greedy_choice(values, epsilon=0.05):
     else:
         chosen_action = torch.argmax(values)
 
-    print('action', chosen_action)
+    # Convert to array to avoid further errors
+    chosen_action = chosen_action.cpu().numpy()
 
     return chosen_action
 
@@ -44,3 +48,23 @@ def get_network_output_shape(network, input_shape):
     network_output = copy(network)(torch.zeros(1, *input_shape))
 
     return network_output.shape
+
+
+class ReplayMemory:
+    ''' Extracted from: https://stackoverflow.com/a/56171119
+    '''
+
+    def __init__(self, max_size):
+        self.buffer = [None] * max_size
+        self.max_size = max_size
+        self.index = 0
+        self.size = 0
+
+    def append(self, obj):
+        self.buffer[self.index] = obj
+        self.size = min(self.size + 1, self.max_size)
+        self.index = (self.index + 1) % self.max_size
+
+    def sample(self, batch_size):
+        indices = random.sample(range(self.size), batch_size)
+        return [self.buffer[index] for index in indices]

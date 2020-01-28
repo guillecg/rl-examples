@@ -35,5 +35,5 @@ if __name__ == '__main__':
         device=DEVICE,
         input_shape=input_shape
     )
-
-    agent.perform_train(n_timesteps=15, n_episodes=2)
+    agent.perform_train(n_timesteps=100, n_episodes=100)
+    agent.perform_test(n_timesteps=10, n_episodes=2)

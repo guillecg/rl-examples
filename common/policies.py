@@ -47,7 +47,7 @@ class CnnPolicy(nn.Module):
             nn.Linear(np.prod(cnn_output_shape), 128),
             nn.ReLU(),
             nn.Linear(128, n_actions),
-            nn.Softmax()
+            # nn.Softmax(dim=n_actions)
         )
 
     def forward(self, x):
