@@ -11,17 +11,19 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
+from itertools import combinations_with_replacement
+
 from common.base import BaseAgent
 from common.utils import epsilon_greedy_choice, ReplayMemory
 
 
 class DQN(BaseAgent):
 
-    def __init__(self, env, policy, device, input_shape=None, **kwargs):
+    def __init__(self, env, policy, device, input_shape=None, action_mapping={}, **kwargs):
         super(DQN, self).__init__(env)
 
         self.device = device
-        self.input_shape = (1, 500, 500) if not input_shape else input_shape
+        self.input_shape = input_shape or (1, 500, 500)
 
         # Set policy and target networks
         self.policy_net = policy(
@@ -42,7 +44,8 @@ class DQN(BaseAgent):
         # RL parameters
         self.alpha = 0.01   # Learning rate
         self.gamma = 0.90   # Discount
-        self.epsilon = 0.10 # Random action choice (epsilon greedy)
+        self.epsilon = 0.33 # Random action choice (epsilon greedy)
+        self.tau = 0.25     # Arbitrary weight for binary actions
 
         # Training parameters
         self.batch_size = 32
@@ -59,11 +62,37 @@ class DQN(BaseAgent):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval() # Avoid training on target network
 
+    # @staticmethod
+    # def get_action_combinations(n_actions):
+    #     combos = list(combinations_with_replacement((0, 1), n_actions))
+    #     combos.extend(list(combinations_with_replacement((1, 0), n_actions)))
+    #
+    #     return set(combos)
+
+    # @staticmethod
+    # def normalize_binary_array(array):
+    #     return array / np.sum(np.abs(array))
+
     def choose_action(self, state):
         # Flatten values to ease finding the max (forget about dimensions)
         q_values = self.policy_net(state).flatten()
 
-        return epsilon_greedy_choice(values=q_values, epsilon=self.epsilon)
+        # Choose action following epsilon-greedy
+        action = epsilon_greedy_choice(values=q_values, epsilon=self.epsilon)
+
+        # Transform chosen action to a binary list
+        action_array = np.array(self.env.action_mapping[action])
+
+        # WARNING: check if this really happens
+        # Normalize binary array in case more than one action is chosen
+        # (when two actions have the same probability)
+        # action_array = self.normalize_binary_array(action_array)
+
+        # Action smoothing by tau
+        action_array = action_array * self.tau
+
+        # WARNING: a list must be passed to the Mujoco environment
+        return list(action_array)
 
     def _store(self, state, action, reward, next_state, terminated):
         self.memory.append(
@@ -96,7 +125,7 @@ class DQN(BaseAgent):
         for episode in tqdm(range(1, n_episodes + 1)):
             # Reset at the beginning of each episode
             self.env.reset()
-            reward = 0
+            episode_reward = None
 
             # Initialize state in each episode
             state = self.env.render()
@@ -108,17 +137,22 @@ class DQN(BaseAgent):
                 # Choose action for the current state
                 action = self.choose_action(state)
 
-                # Perform chosen action
-                _, reward, terminated, info = self.env.step(action)
+                # When limits of the simulator are reached (either borders,
+                # joints maximum values, etc), NaN is returned
+                if np.isnan(action).any():
+                    break
 
-                # Render state as RGB image
-                next_state = self.env.render()
+                # Perform chosen action
+                next_state, reward, terminated, info = self.env.step(action)
 
                 # Change to (Batch, Channel, Width, Height)
                 next_state = next_state.unsqueeze(0)
 
                 # Store in the experience replay memory/buffer
                 self._store(state, action, reward, next_state, terminated)
+
+                # Update episode reward
+                episode_reward = reward if not episode_reward else (episode_reward + reward) / 2
 
                 # Finish iteration by replacing state as the new state
                 # Note: copy and detach the tensor from the computation graph
@@ -131,6 +165,7 @@ class DQN(BaseAgent):
                 if terminated:
                     self._align_target_net()
 
+            print(f'[+] Episode: {episode} - Reward: {episode_reward}')
 
     def perform_test(self, n_timesteps=20, n_episodes=20):
         for episode in tqdm(range(1, n_episodes + 1)):
@@ -153,11 +188,10 @@ class DQN(BaseAgent):
                 # Choose action for the current state
                 action = self.choose_action(state)
 
-                # Perform chosen action
-                _, reward, terminated, info = self.env.step(action)
+                print(action)
 
-                # Render state as RGB image
-                next_state = self.env.render()
+                # Perform chosen action
+                next_state, reward, terminated, info = self.env.step(action)
 
                 # Change to (Batch, Channel, Width, Height)
                 next_state = next_state.unsqueeze(0)

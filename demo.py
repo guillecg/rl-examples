@@ -20,8 +20,12 @@ DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 if __name__ == '__main__':
+    # NOTE: use dense reward type to fully capture the distance between
+    # the gripper and the goal, otherwise the enviroment return a sparse
+    # reward of -1.0 always unless it is 0.05 (units?) from the goal
+    env = gym.make(ENV_NAME, reward_type='dense')
+
     # Custom wrappers allow returning an image using render
-    env = gym.make(ENV_NAME)
     env = RoboticsEnvWrapper(env)
     env = PyTorchScaledImageEnvWrapper(env=env, width=150, height=150)
 
@@ -35,5 +39,5 @@ if __name__ == '__main__':
         device=DEVICE,
         input_shape=input_shape
     )
-    agent.perform_train(n_timesteps=100, n_episodes=100)
-    agent.perform_test(n_timesteps=10, n_episodes=2)
+    agent.perform_train(n_timesteps=200, n_episodes=150)
+    agent.perform_test(n_timesteps=100, n_episodes=2)

@@ -18,12 +18,15 @@ def epsilon_greedy_choice(values, epsilon=0.05):
     chosen_action = None
 
     if torch.rand(1) <= epsilon:
-        chosen_action = torch.randint(low=0, high=4, size=(1,))
+        chosen_action = torch.randint(low=0, high=4, size=(1,))[0]
     else:
         chosen_action = torch.argmax(values)
 
     # Convert to array to avoid further errors
     chosen_action = chosen_action.cpu().numpy()
+
+    # Convert to integer
+    chosen_action = int(chosen_action)
 
     return chosen_action
 

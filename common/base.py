@@ -12,18 +12,15 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def choose_action(self):
-        ''' Abstact method to be replaced by the policy prediction
-        '''
-        pass
+        ''' Abstact method to be replaced by the policy prediction '''
+        raise NotImplementedError
 
     @abstractmethod
     def perform_train(self):
-        ''' Abstact method to be replaced by the training loop
-        '''
-        pass
+        ''' Abstact method to be replaced by the training loop '''
+        raise NotImplementedError
 
     @abstractmethod
     def perform_test(self):
-        ''' Abstact method to be replaced by the test loop
-        '''
-        pass
+        ''' Abstact method to be replaced by the test loop '''
+        raise NotImplementedError
