@@ -3,23 +3,24 @@ SEED = 42
 import numpy as np
 np.random.seed(SEED)
 
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
-import matplotlib.pyplot as plt
+from copy import copy
 
 from tqdm import tqdm
 
-from itertools import combinations_with_replacement
+import torch.optim as optim
+import torch.nn.functional as F
+import torch.nn as nn
 
-from common.base import BaseAgent
+import matplotlib.pyplot as plt
+
 from common.utils import epsilon_greedy_choice, ReplayMemory
+from common.base import BaseAgent
+
 
 
 class DQN(BaseAgent):
 
-    def __init__(self, env, policy, device, input_shape=None, action_mapping={}, **kwargs):
+    def __init__(self, env, policy, device, input_shape=None, **kwargs):
         super(DQN, self).__init__(env)
 
         self.device = device
@@ -42,14 +43,15 @@ class DQN(BaseAgent):
         self._align_target_net()
 
         # RL parameters
-        self.alpha = 0.01   # Learning rate
-        self.gamma = 0.90   # Discount
-        self.epsilon = 0.33 # Random action choice (epsilon greedy)
-        self.tau = 0.25     # Arbitrary weight for binary actions
+        self.alpha = 0.01        # Learning rate
+        self.gamma = 0.90        # Discount
+        self.epsilon_max = 0.33  # Random action choice (epsilon greedy)
+        self.epsilon_min = 0.05  # Minimum possible value for epsilon
+        self.tau = 0.25          # Arbitrary weight for binary actions
 
         # Training parameters
         self.batch_size = 32
-        self.loss_fn = F.smooth_l1_loss # Huber loss
+        self.loss_fn = F.smooth_l1_loss  # Huber loss
         self.optimizer = optim.RMSprop(self.policy_net.parameters())
 
         self.exp_replay_len = 2000
@@ -60,25 +62,17 @@ class DQN(BaseAgent):
 
     def _align_target_net(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.target_net.eval() # Avoid training on target network
-
-    # @staticmethod
-    # def get_action_combinations(n_actions):
-    #     combos = list(combinations_with_replacement((0, 1), n_actions))
-    #     combos.extend(list(combinations_with_replacement((1, 0), n_actions)))
-    #
-    #     return set(combos)
-
-    # @staticmethod
-    # def normalize_binary_array(array):
-    #     return array / np.sum(np.abs(array))
+        self.target_net.eval()  # Avoid training on target network
 
     def choose_action(self, state):
         # Flatten values to ease finding the max (forget about dimensions)
         q_values = self.policy_net(state).flatten()
 
         # Choose action following epsilon-greedy
-        action = epsilon_greedy_choice(values=q_values, epsilon=self.epsilon)
+        action = epsilon_greedy_choice(
+            values=q_values,
+            epsilon=self.epsilon_max
+        )
 
         # Transform chosen action to a binary list
         action_array = np.array(self.env.action_mapping[action])
@@ -122,10 +116,17 @@ class DQN(BaseAgent):
             self.optimizer.step()
 
     def perform_train(self, n_timesteps=100, n_episodes=100):
+        self.epsilon_max_initial = copy(self.epsilon_max)
+
         for episode in tqdm(range(1, n_episodes + 1)):
             # Reset at the beginning of each episode
             self.env.reset()
             episode_reward = None
+
+            # Reduce epsilon by 1 - ratio of all completed episodes until
+            # its minimum value
+            self.epsilon_max = self.epsilon_max * (1 - episode / n_episodes)
+            self.epsilon_max = max(self.epsilon_max, self.epsilon_min)
 
             # Initialize state in each episode
             state = self.env.render()
@@ -167,7 +168,13 @@ class DQN(BaseAgent):
 
             print(f'[+] Episode: {episode} - Reward: {episode_reward}')
 
+        # Reset epsilon_max to its initial value
+        self.epsilon_max = self.epsilon_max_initial
+
     def perform_test(self, n_timesteps=20, n_episodes=20):
+        self.epsilon_max_initial = copy(self.epsilon_max)
+        self.epsilon_max = copy(self.epsilon_min)
+
         for episode in tqdm(range(1, n_episodes + 1)):
             # Reset at the beginning of each episode
             self.env.reset()
@@ -199,3 +206,6 @@ class DQN(BaseAgent):
                 # Finish iteration by replacing state as the new state
                 # Note: copy and detach the tensor from the computation graph
                 state = next_state.clone().detach()
+
+        # Reset epsilon_max to its initial value
+        self.epsilon_max = self.epsilon_max_initial

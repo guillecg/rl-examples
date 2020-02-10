@@ -25,6 +25,10 @@ if __name__ == '__main__':
     # reward of -1.0 always unless it is 0.05 (units?) from the goal
     env = gym.make(ENV_NAME, reward_type='dense')
 
+    # WARNING: not working
+    # Avoid the presence of target in the air (3D solution not available yet)
+    # https://github.com/openai/gym/blob/master/gym/envs/robotics/fetch/reach.py#L10
+
     # Custom wrappers allow returning an image using render
     env = RoboticsEnvWrapper(env)
     env = PyTorchScaledImageEnvWrapper(env=env, width=150, height=150)
@@ -39,5 +43,5 @@ if __name__ == '__main__':
         device=DEVICE,
         input_shape=input_shape
     )
-    agent.perform_train(n_timesteps=200, n_episodes=150)
-    agent.perform_test(n_timesteps=100, n_episodes=2)
+    agent.perform_train(n_timesteps=200, n_episodes=1000)
+    agent.perform_test(n_timesteps=50, n_episodes=2)
