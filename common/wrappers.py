@@ -1,6 +1,10 @@
 import gym
 from gym.envs.robotics.fetch_env import goal_distance
 
+import numpy as np
+
+import cv2
+
 from common.utils import image_to_pytorch
 
 
@@ -125,10 +129,31 @@ class PyTorchScaledImageEnvWrapper(gym.Wrapper):
             height=self.height
         )
 
+        env_img = self.extract_red(img=env_img)
+        # env_img = self.apply_threshold_to_img(img=env_img)
         env_img = self.scaling_fn(env_img)
         env_img = image_to_pytorch(img=env_img, cuda=self.cuda)
 
         return env_img
+
+    @staticmethod
+    def extract_red(
+            img,
+            lower_red=np.array([0, 100, 100]),
+            upper_red=np.array([10, 255, 255])
+        ):
+        hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        mask = cv2.inRange(hsv_img, lower_red, upper_red)
+
+        mask = mask.reshape(*mask.shape, 1)
+
+        return mask
+
+    @staticmethod
+    def apply_threshold(img, thr=200):
+        _, threshold = cv2.threshold(img, thr, 255, cv2.THRESH_BINARY)
+
+        return threshold
 
     @staticmethod
     def normalization(img):
