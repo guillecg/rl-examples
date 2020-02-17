@@ -13,6 +13,8 @@ import numpy as np
 
 import torch.nn as nn
 
+from collections import OrderedDict
+
 from common.utils import get_network_output_shape
 
 
@@ -21,34 +23,36 @@ class CnnPolicy(nn.Module):
     def __init__(self, input_shape, n_actions):
         super(CnnPolicy, self).__init__()
 
-        self.cnn = nn.Sequential(
-            nn.Conv2d(input_shape[0], 8, kernel_size=5, stride=2),
-            nn.BatchNorm2d(8),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+        self.cnn = nn.Sequential(OrderedDict([
+            ('conv1', nn.Conv2d(input_shape[0], 32, kernel_size=5, stride=2)),
+            ('conv1-batch_norm', nn.BatchNorm2d(num_features=32, affine=True)),
+            ('conv1-relu', nn.ReLU()),
+            # ('conv1-max_pool', nn.MaxPool2d(kernel_size=3, stride=2)),
 
-            nn.Conv2d(8, 16, kernel_size=5, stride=2, padding=5),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            ('conv2', nn.Conv2d(32, 64, kernel_size=5, stride=2, padding=5)),
+            ('conv2-batch_norm', nn.BatchNorm2d(num_features=64, affine=True)),
+            ('conv2-relu', nn.ReLU()),
+            # ('conv2-max_pool', nn.MaxPool2d(kernel_size=3, stride=2)),
 
-            nn.Conv2d(16, 32, kernel_size=5, stride=2, padding=5),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-        )
+            # ('conv3', nn.Conv2d(16, 32, kernel_size=5, stride=2, padding=5)),
+            # # ('conv3-batch_norm', nn.BatchNorm2d(32)),
+            # ('conv3-relu', nn.ReLU()),
+            # # ('conv3-max_pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+        ]))
 
         cnn_output_shape = get_network_output_shape(
             network=self.cnn,
             input_shape=input_shape
         )
 
-        self.dnn = nn.Sequential(
-            nn.Linear(np.prod(cnn_output_shape), 128),
-            nn.ReLU(),
-            nn.Linear(128, n_actions),
-            # nn.Softmax(dim=n_actions)
-        )
+        self.dnn = nn.Sequential(OrderedDict([
+            ('dense1', nn.Linear(np.prod(cnn_output_shape), 128)),
+            ('dense1-relu', nn.ReLU()),
+            ('dense2', nn.Linear(128, 32)),
+            ('dense2-relu', nn.ReLU()),
+            ('dense3', nn.Linear(32, n_actions)),
+            ('dense3-softmax', nn.Softmax(dim=1))
+        ]))
 
     def forward(self, x):
         hidden = self.cnn(x)
