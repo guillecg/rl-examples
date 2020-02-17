@@ -45,7 +45,7 @@ class DQN(BaseAgent):
         # RL parameters
         self.alpha = 0.01        # Learning rate
         self.gamma = 0.90        # Discount
-        self.epsilon_max = 0.33  # Random action choice (epsilon greedy)
+        self.epsilon_max = 0.50  # Random action choice (epsilon greedy)
         self.epsilon_min = 0.05  # Minimum possible value for epsilon
         self.tau = 0.25          # Arbitrary weight for binary actions
 
@@ -97,8 +97,8 @@ class DQN(BaseAgent):
         minibatch = self.memory.sample(batch_size=self.batch_size)
 
         for state, action, reward, next_state, terminated in minibatch:
-            observed_values = self.policy_net(state).flatten()
-            target_values = self.target_net(next_state).flatten()
+            observed_values = self.policy_net(state)
+            target_values = self.target_net(next_state)
 
             # Update target values as the discounted reward
             target_values = reward + self.gamma * target_values
@@ -115,7 +115,9 @@ class DQN(BaseAgent):
 
             self.optimizer.step()
 
-    def perform_train(self, n_timesteps=100, n_episodes=100):
+            self._align_target_net()
+
+    def perform_train(self, n_episodes=100, n_timesteps=100):
         self.epsilon_max_initial = copy(self.epsilon_max)
 
         for episode in tqdm(range(1, n_episodes + 1)):
@@ -125,7 +127,8 @@ class DQN(BaseAgent):
 
             # Reduce epsilon by 1 - ratio of all completed episodes until
             # its minimum value
-            self.epsilon_max = self.epsilon_max * (1 - episode / n_episodes)
+            self.epsilon_max = \
+                self.epsilon_max_initial * (1 - (episode / n_episodes))
             self.epsilon_max = max(self.epsilon_max, self.epsilon_min)
 
             # Initialize state in each episode
@@ -153,25 +156,27 @@ class DQN(BaseAgent):
                 self._store(state, action, reward, next_state, terminated)
 
                 # Update episode reward
-                episode_reward = reward if not episode_reward else (episode_reward + reward) / 2
+                episode_reward = \
+                    reward if not episode_reward else (episode_reward + reward) / 2
 
                 # Finish iteration by replacing state as the new state
                 # Note: copy and detach the tensor from the computation graph
                 state = next_state.clone().detach()
 
-                if timestep > self.batch_size:
+                # Retrain and align every batch_size number of iterations
+                if timestep % self.batch_size == 0:
                     self._retrain()
-                    self._align_target_net()
 
                 if terminated:
                     self._align_target_net()
 
-            print(f'[+] Episode: {episode} - Reward: {episode_reward}')
+            print(f'[+] Episode: {episode} - Reward: {episode_reward} - Epsilon: {self.epsilon_max}')
+
 
         # Reset epsilon_max to its initial value
         self.epsilon_max = self.epsilon_max_initial
 
-    def perform_test(self, n_timesteps=20, n_episodes=20):
+    def perform_test(self, n_episodes=20, n_timesteps=20):
         self.epsilon_max_initial = copy(self.epsilon_max)
         self.epsilon_max = copy(self.epsilon_min)
 
