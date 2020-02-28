@@ -5,7 +5,7 @@ import numpy as np
 
 import cv2
 
-from common.utils import image_to_pytorch
+from modules.utils import image_to_pytorch
 
 
 class GenericEnvWrapper(gym.Wrapper):
@@ -129,7 +129,7 @@ class PyTorchScaledImageEnvWrapper(gym.Wrapper):
             height=self.height
         )
 
-        env_img = self.extract_red(img=env_img)
+        # env_img = self.extract_red(img=env_img)
         # env_img = self.apply_threshold_to_img(img=env_img)
         env_img = self.scaling_fn(env_img)
         env_img = image_to_pytorch(img=env_img, cuda=self.cuda)

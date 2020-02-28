@@ -13,8 +13,8 @@ import torch.nn as nn
 
 import matplotlib.pyplot as plt
 
-from common.utils import epsilon_greedy_choice, ReplayMemory
-from common.base import BaseAgent
+from modules.utils import epsilon_greedy_choice, ReplayMemory
+from modules.base import BaseAgent
 
 
 
@@ -167,10 +167,10 @@ class DQN(BaseAgent):
                 if timestep % self.batch_size == 0:
                     self._retrain()
 
-                if terminated:
-                    self._align_target_net()
+            if episode % self.batch_size == 0:
+                self._align_target_net()
 
-            print(f'[+] Episode: {episode} - Reward: {episode_reward} - Epsilon: {self.epsilon_max}')
+            print(f'[+] Episode: {episode:03} - Reward: {episode_reward:2.8f} - Epsilon: {self.epsilon_max:2.8f}')
 
 
         # Reset epsilon_max to its initial value
